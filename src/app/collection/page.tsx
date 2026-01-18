@@ -33,9 +33,14 @@ const PageCollectionContent = () => {
   });
   const isInitializing = useRef(true);
   const prevFiltersRef = useRef<FilterState | null>(null);
+  const isMountedRef = useRef(true);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Read URL parameters and set filters/search
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
     isInitializing.current = true;
     const categoryId = searchParams.get('category_id');
     const subCategoryId = searchParams.get('sub_category_id');
@@ -78,15 +83,32 @@ const PageCollectionContent = () => {
       sortBy: sortBy || 'latest',
     };
 
-    setFilters(newFilters);
-    if (search) {
-      setSearchQuery(search);
+    if (isMountedRef.current) {
+      setFilters(newFilters);
+      if (search) {
+        setSearchQuery(search);
+      }
     }
     
     // Mark initialization as complete after a short delay
-    setTimeout(() => {
-      isInitializing.current = false;
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
+    
+    initTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        isInitializing.current = false;
+      }
     }, 100);
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+        initTimeoutRef.current = null;
+      }
+    };
   }, [searchParams]);
 
   // Fetch products with filters
@@ -144,7 +166,9 @@ const PageCollectionContent = () => {
         const response = await fetch(`${apiUrl}/api/products?${params.toString()}`);
         const data = await response.json();
         
-        if (data.success && data.data) {
+        if (!isMountedRef.current) return;
+        
+        if (data.success && data.data && isMountedRef.current) {
           setProducts(data.data);
           setPagination({
             ...pagination,
@@ -155,11 +179,18 @@ const PageCollectionContent = () => {
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchProducts();
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [filters, pagination.page, searchQuery]);
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {

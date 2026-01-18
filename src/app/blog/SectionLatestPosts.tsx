@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useState } from "react";
+import React, { FC, useState, Suspense } from "react";
 import Heading from "@/components/Heading/Heading";
 import Pagination from "@/shared/Pagination/Pagination";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
@@ -15,7 +15,7 @@ export interface SectionLatestPostsProps {
   postCardName?: "card3";
 }
 
-const SectionLatestPosts: FC<SectionLatestPostsProps> = ({
+const SectionLatestPostsContent: FC<SectionLatestPostsProps> = ({
   postCardName = "card3",
   className = "",
 }) => {
@@ -77,6 +77,33 @@ const SectionLatestPosts: FC<SectionLatestPostsProps> = ({
         </div>
       </div>
     </div>
+  );
+};
+
+const SectionLatestPosts: FC<SectionLatestPostsProps> = (props) => {
+  return (
+    <Suspense
+      fallback={
+        <div className={`nc-SectionLatestPosts relative ${props.className || ''}`}>
+          <div className="flex flex-col lg:flex-row">
+            <div className="w-full lg:w-3/5 xl:w-2/3 xl:pr-14">
+              <Heading>Latest Articles 🎈</Heading>
+              <div className={`grid gap-6 md:gap-8 grid-cols-1`}>
+                {[1, 2, 3, 4, 5, 6].map((index) => (
+                  <Card3 key={index} blog={null} className="" />
+                ))}
+              </div>
+            </div>
+            <div className="w-full space-y-7 mt-24 lg:mt-0 lg:w-2/5 lg:pl-10 xl:pl-0 xl:w-1/3 ">
+              <WidgetCategories />
+              <WidgetPosts />
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SectionLatestPostsContent {...props} />
+    </Suspense>
   );
 };
 

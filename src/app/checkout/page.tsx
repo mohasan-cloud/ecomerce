@@ -75,14 +75,40 @@ const CheckoutPage = () => {
           const data = await response.json();
           if (data.success) {
             setCartSettings(data.data || []);
-            // Initialize selected settings with default prices for type "no"
+            
+            // Try to load selected settings from localStorage (from cart page)
+            let savedSettings: Record<number, number> | null = null;
+            if (typeof window !== 'undefined') {
+              const saved = localStorage.getItem('cart_selected_settings');
+              if (saved) {
+                try {
+                  savedSettings = JSON.parse(saved);
+                } catch (e) {
+                  console.warn('Failed to parse saved cart settings:', e);
+                }
+              }
+            }
+            
+            // Initialize selected settings
             const initialSelected: Record<number, number> = {};
             data.data?.forEach((setting: CartSetting) => {
               if (setting.type === 'no') {
+                // Type "no" always has default price
                 initialSelected[setting.id] = Number(setting.price) || 0;
+              } else if (savedSettings && savedSettings[setting.id] !== undefined) {
+                // Type "yes" - use saved selection from cart page
+                initialSelected[setting.id] = savedSettings[setting.id];
+              } else {
+                // Type "yes" - default to 0 (None)
+                initialSelected[setting.id] = 0;
               }
             });
             setSelectedCartSettings(initialSelected);
+            
+            // Clear saved settings after loading
+            if (typeof window !== 'undefined' && savedSettings) {
+              localStorage.removeItem('cart_selected_settings');
+            }
           }
         }
       } catch (error) {
@@ -186,18 +212,47 @@ const CheckoutPage = () => {
   };
 
   const renderProduct = (item: typeof items[0], index: number) => {
-    const { product, quantity, finalPrice, selectedAttributes } = item;
+    const { product, quantity, price, priceWithAttributes, finalPrice, discountPercentage, selectedAttributes } = item;
+
+    // Calculate attribute prices
+    let totalAttributePrice = 0;
+    if (selectedAttributes && product.attributes) {
+      Object.entries(selectedAttributes).forEach(([attrId, values]) => {
+        const attribute = product.attributes?.find(a => a.id === Number(attrId));
+        if (attribute && values && values.length > 0) {
+          const selectedValue = values[0];
+          const valueDetails = attribute.values?.find(v => 
+            v.id === Number(selectedValue) || v.value === selectedValue
+          );
+          if (valueDetails?.price && Number(valueDetails.price) > 0) {
+            totalAttributePrice += Number(valueDetails.price);
+          }
+        }
+      });
+    }
+
+    const baseProductPrice = price || product.price;
+    const priceWithAttrs = priceWithAttributes || (baseProductPrice + totalAttributePrice);
+    
+    // Calculate discount only on base product price, not on attributes
+    const discountedProductPrice = discountPercentage > 0 
+      ? baseProductPrice * (1 - discountPercentage / 100)
+      : baseProductPrice;
+    
+    const itemTotal = (finalPrice || (discountedProductPrice + totalAttributePrice)) * quantity;
+    const itemPriceWithAttrs = (discountedProductPrice + totalAttributePrice); // for display without quantity
 
     return (
-      <div key={item.id} className="relative flex py-7 first:pt-0 last:pb-0">
-        <div className="relative h-36 w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+      <div key={item.id} className="relative flex py-8 sm:py-10 first:pt-0 last:pb-0 border-b border-slate-200 dark:border-slate-700 last:border-b-0">
+        {/* Product Thumbnail */}
+        <div className="relative h-36 w-24 sm:w-32 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
           {product.image ? (
             <Image
-              src={product.image}
               fill
+              src={product.image}
               alt={product.name}
+              sizes="300px"
               className="h-full w-full object-contain object-center"
-              sizes="150px"
               unoptimized={product.image.includes('localhost') || product.image.includes('127.0.0.1')}
             />
           ) : (
@@ -208,45 +263,74 @@ const CheckoutPage = () => {
           <Link href={`/product-detail/${product.slug}`} className="absolute inset-0"></Link>
         </div>
 
+        {/* Product Details */}
         <div className="ml-3 sm:ml-6 flex flex-1 flex-col">
-          <div>
-            <div className="flex justify-between ">
-              <div className="flex-[1.5] ">
-                <h3 className="text-base font-semibold">
-                  <Link href={`/product-detail/${product.slug}`}>{product.name}</Link>
+          <div className="flex-1">
+            <div className="flex justify-between items-start">
+              {/* Left Side - Product Info */}
+              <div className="flex-1 pr-4">
+                {/* Product Name */}
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                  <Link href={`/product-detail/${product.slug}`} className="hover:text-primary-6000 dark:hover:text-primary-400">
+                    {product.name}
+                  </Link>
                 </h3>
                 
-                {/* Attributes - Only show attributes marked for checkout */}
-                {selectedAttributes && Object.keys(selectedAttributes).length > 0 && (
+                {/* Attributes */}
+                {selectedAttributes && Object.keys(selectedAttributes).length > 0 && product.attributes && (
                   <div className="mt-1.5 sm:mt-2.5 space-y-1">
                     {Object.entries(selectedAttributes).map(([attrId, values]) => {
                       const attribute = product.attributes?.find(a => a.id === Number(attrId));
                       if (!attribute || !values || values.length === 0) return null;
                       
                       const selectedValue = values[0];
-                      const valueDetails = attribute.values?.find(v => 
-                        v.id === Number(selectedValue) || v.value === selectedValue
-                      );
+                      // Try to find value by ID first (new format - IDs are stored), then by value string (legacy format)
+                      const valueDetails = attribute.values?.find(v => {
+                        // First, try to match by ID (new format - IDs are stored in array)
+                        if (typeof selectedValue === 'number') {
+                          return v.id === selectedValue;
+                        }
+                        if (typeof selectedValue === 'string') {
+                          const numValue = Number(selectedValue);
+                          if (!isNaN(numValue) && numValue > 0) {
+                            // If it's a numeric string, treat it as ID
+                            return v.id === numValue || String(v.id) === selectedValue;
+                          }
+                          // If it's not numeric, it's a legacy value name - match by value string
+                          if (v.value === selectedValue || v.backend_value === selectedValue) {
+                            return true;
+                          }
+                          // Case-insensitive match for value strings
+                          if (typeof v.value === 'string') {
+                            return v.value.toLowerCase() === selectedValue.toLowerCase();
+                          }
+                        }
+                        return false;
+                      });
+                      
                       const displayValue = valueDetails?.backend_value || valueDetails?.value || selectedValue;
                       const displayValueStr = String(displayValue);
                       const isColorCode = isValidColorCode(displayValueStr);
                       
                       return (
-                        <div key={attrId} className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                          {isColorCode ? (
-                            <>
-                              <div 
-                                className="w-3 h-3 rounded-full border border-slate-300 inline-block flex-shrink-0"
-                                style={{ backgroundColor: displayValueStr }}
-                              />
+                        <div key={attrId} className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{attribute.name}:</span>
+                            {isColorCode ? (
+                              <>
+                                <div 
+                                  className="w-4 h-4 rounded-full border border-slate-300 inline-block flex-shrink-0"
+                                  style={{ backgroundColor: displayValueStr }}
+                                />
+                                <span className="font-medium">{valueDetails?.value || displayValueStr}</span>
+                              </>
+                            ) : (
                               <span className="font-medium">{valueDetails?.value || displayValueStr}</span>
-                            </>
-                          ) : (
-                            <span className="font-medium">{displayValueStr}</span>
-                          )}
+                            )}
+                          </div>
                           {valueDetails?.price && Number(valueDetails.price) > 0 && (
-                            <span className="text-xs text-slate-500 dark:text-slate-500">
-                              (+{getCurrencySymbol(currency)}{Number(valueDetails.price).toFixed(2)})
+                            <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                              +{getCurrencySymbol(currency)}{Number(valueDetails.price).toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -255,33 +339,86 @@ const CheckoutPage = () => {
                   </div>
                 )}
 
-                <div className="mt-3 flex justify-between w-full sm:hidden relative">
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
-                    Qty: {quantity}
+                {/* Price Breakdown */}
+                <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                  {/* Product Price with Discount */}
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between">
+                      <span>Product Price:</span>
+                      <div className="flex items-center gap-2">
+                        {discountPercentage > 0 && (
+                          <span className="text-slate-400 dark:text-slate-500 line-through">
+                            {getCurrencySymbol(currency)}{baseProductPrice.toFixed(2)}
+                          </span>
+                        )}
+                        <span className={discountPercentage > 0 ? "text-green-600 dark:text-green-400 font-medium" : ""}>
+                          {getCurrencySymbol(currency)}{discountedProductPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    {discountPercentage > 0 && (
+                      <div className="flex justify-between pl-2">
+                        <span className="bg-blue-50 dark:bg-blue-900/20 px-1 rounded text-xs">
+                          Discount ({discountPercentage.toFixed(0)}%): -{getCurrencySymbol(currency)}{(baseProductPrice - discountedProductPrice).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <Prices
-                    contentClass="py-1 px-2 md:py-1.5 md:px-2.5 text-sm font-medium h-full"
-                    price={product.price}
-                    finalPrice={finalPrice}
-                    currency={currency}
-                  />
+                  
+                  {totalAttributePrice > 0 && (
+                    <div className="flex justify-between">
+                      <span>Attributes:</span>
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        +{getCurrencySymbol(currency)}{totalAttributePrice.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between font-semibold text-slate-900 dark:text-slate-100 pt-1 border-t border-slate-200 dark:border-slate-700">
+                    <span>Total:</span>
+                    <span>{getCurrencySymbol(currency)}{itemTotal.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="hidden flex-1 sm:flex justify-end">
-                <Prices 
-                  price={product.price} 
-                  finalPrice={finalPrice}
-                  currency={currency}
-                  className="mt-0.5" 
-                />
+              {/* Right Side - Price Display */}
+              <div className="hidden sm:flex flex-col items-end text-right">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="bg-green-500 text-white px-2 py-1 rounded-lg text-sm font-semibold">
+                    {getCurrencySymbol(currency)}{finalPrice.toFixed(2)}
+                  </div>
+                  {discountPercentage > 0 && (
+                    <>
+                      <span className="text-slate-400 dark:text-slate-500 line-through text-sm">
+                        {getCurrencySymbol(currency)}{(baseProductPrice + totalAttributePrice).toFixed(2)}
+                      </span>
+                      <span className="text-red-600 dark:text-red-400 text-xs font-medium">
+                        Save {discountPercentage.toFixed(0)}%
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                  Qty: {quantity}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex mt-auto pt-4 items-end justify-between text-sm">
-            <div className="hidden sm:block text-center relative">
-              <span className="text-slate-600 dark:text-slate-400">Qty: {quantity}</span>
+          {/* Mobile Price Display */}
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 sm:hidden">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Qty: {quantity}
+            </div>
+            <div className="text-right">
+              {discountPercentage > 0 && (
+                <div className="text-xs text-slate-400 dark:text-slate-500 line-through mb-0.5">
+                  {getCurrencySymbol(currency)}{priceWithAttrs.toFixed(2)}
+                </div>
+              )}
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {getCurrencySymbol(currency)}{itemTotal.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>
@@ -647,8 +784,17 @@ const CheckoutPage = () => {
                     paymentDetails.phone_number = paymentFormData.phoneNumber;
                   }
                   
-                  // Prepare cart settings array (just the prices)
-                  const cartSettingsArray = Object.values(selectedCartSettings);
+                  // Prepare cart settings array with id, name, and price
+                  const cartSettingsArray = Object.entries(selectedCartSettings)
+                    .filter(([settingId, price]) => price > 0)
+                    .map(([settingId, price]) => {
+                      const setting = cartSettings.find(s => s.id === Number(settingId));
+                      return {
+                        id: Number(settingId),
+                        name: setting?.name || `Setting ${settingId}`,
+                        price: Number(price),
+                      };
+                    });
                   
                   // Create order
                   const orderResponse = await fetch(`${apiUrl}/api/orders`, {
@@ -672,10 +818,17 @@ const CheckoutPage = () => {
                   if (orderData.success) {
                     toast.success("Order confirmed successfully! Your order has been placed.", { id: "order-processing", duration: 5000 });
                     
-                    // Redirect to order success page
-                    setTimeout(() => {
-                      router.push("/order-success");
-                    }, 2000);
+                    // Save order ID to localStorage and pass to success page
+                    if (orderData.data?.order?.id) {
+                      localStorage.setItem('last_order_id', orderData.data.order.id.toString());
+                      setTimeout(() => {
+                        router.push(`/order-success?order_id=${orderData.data.order.id}`);
+                      }, 2000);
+                    } else {
+                      setTimeout(() => {
+                        router.push("/order-success");
+                      }, 2000);
+                    }
                   } else {
                     toast.error(orderData.message || "Failed to process order. Please try again.", { id: "order-processing" });
                   }

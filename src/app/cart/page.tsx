@@ -606,7 +606,16 @@ const CartPage = () => {
                     <span>{getCurrencySymbol(currency)}{finalTotal.toFixed(2)}</span>
                 </div>
               </div>
-              <ButtonPrimary href="/checkout" className="mt-8 w-full">
+              <ButtonPrimary 
+                onClick={() => {
+                  // Save selected cart settings to localStorage before navigating
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('cart_selected_settings', JSON.stringify(selectedCartSettings));
+                  }
+                  window.location.href = '/checkout';
+                }}
+                className="mt-8 w-full"
+              >
                 Checkout
               </ButtonPrimary>
               <div className="mt-5 text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center">

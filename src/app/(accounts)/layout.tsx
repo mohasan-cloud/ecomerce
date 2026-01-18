@@ -34,6 +34,10 @@ const pages: {
     name: "Change Billing",
     link: "/account-billing",
   },
+  {
+    name: "My Devices",
+    link: "/account-devices",
+  },
 ];
 
 const CommonLayout: FC<CommonLayoutProps> = ({ children }) => {
@@ -60,15 +64,24 @@ const CommonLayout: FC<CommonLayoutProps> = ({ children }) => {
     fetchUserData();
 
     // Listen for auth changes
-    const handleAuthChange = () => {
-      fetchUserData();
-    };
+    if (typeof window !== 'undefined') {
+      const handleAuthChange = () => {
+        fetchUserData();
+      };
 
-    window.addEventListener('auth-change', handleAuthChange);
+      window.addEventListener('auth-change', handleAuthChange);
 
-    return () => {
-      window.removeEventListener('auth-change', handleAuthChange);
-    };
+      return () => {
+        try {
+          if (typeof window !== 'undefined') {
+            window.removeEventListener('auth-change', handleAuthChange);
+          }
+        } catch (e) {
+          // Ignore error if window is not available
+          console.warn('Error removing event listener:', e);
+        }
+      };
+    }
   }, []);
 
   const location = user?.city && user?.state 

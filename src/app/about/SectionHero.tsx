@@ -53,6 +53,10 @@ const SectionHero: FC<SectionHeroProps> = ({
 
   // Fetch module data from API
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    let isMounted = true;
+    
     const fetchModuleData = async () => {
       try {
         setLoading(true);
@@ -71,7 +75,7 @@ const SectionHero: FC<SectionHeroProps> = ({
 
         const result: ModuleDataResponse = await response.json();
 
-        if (result.success && result.data && result.data.length > 0) {
+        if (result.success && result.data && result.data.length > 0 && isMounted) {
           // Get first item from module data
           const item = result.data[0];
           
@@ -103,18 +107,27 @@ const SectionHero: FC<SectionHeroProps> = ({
             buttonText: buttonText,
             buttonLink: buttonLink,
           });
-        } else {
+        } else if (isMounted) {
           setData(null);
         }
       } catch (err) {
         console.error('Error fetching module data:', err);
-        setData(null);
+        if (isMounted) {
+          setData(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchModuleData();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Show skeleton loading

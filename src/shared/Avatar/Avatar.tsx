@@ -1,6 +1,5 @@
 import { avatarColors } from "@/contains/contants";
 import React, { FC } from "react";
-import { avatarImgs } from "@/contains/fakeData";
 import VerifyIcon from "@/components/VerifyIcon";
 import Image, { StaticImageData } from "next/image";
 
@@ -8,7 +7,7 @@ export interface AvatarProps {
   containerClassName?: string;
   sizeClass?: string;
   radius?: string;
-  imgUrl?: string | StaticImageData;
+  imgUrl?: string | StaticImageData | null;
   userName?: string;
   hasChecked?: boolean;
   hasCheckedClass?: string;
@@ -18,13 +17,21 @@ const Avatar: FC<AvatarProps> = ({
   containerClassName = "ring-1 ring-white dark:ring-neutral-900",
   sizeClass = "h-6 w-6 text-sm",
   radius = "rounded-full",
-  imgUrl = avatarImgs[0],
+  imgUrl,
   userName,
   hasChecked,
   hasCheckedClass = "w-4 h-4 bottom-1 -right-0.5",
 }) => {
-  const url = imgUrl || "";
-  const name = userName || "John Doe";
+  // Only use imgUrl if it's a valid string or StaticImageData
+  const hasImage = imgUrl && (
+    (typeof imgUrl === 'string' && imgUrl.trim() !== '') ||
+    (typeof imgUrl === 'object' && imgUrl !== null)
+  );
+  
+  const url = hasImage ? imgUrl : null;
+  const name = userName || "U";
+  const firstLetter = name.trim()[0]?.toUpperCase() || "U";
+  
   const _setBgColor = (name: string) => {
     const backgroundIndex = Math.floor(
       name.charCodeAt(0) % avatarColors.length
@@ -47,7 +54,9 @@ const Avatar: FC<AvatarProps> = ({
           unoptimized={typeof url === 'string' && (url.includes('localhost') || url.includes('127.0.0.1'))}
         />
       )}
-      <span className="wil-avatar__name">{name[0]}</span>
+      {!url && (
+        <span className="wil-avatar__name relative z-10">{firstLetter}</span>
+      )}
 
       {hasChecked && (
         <span className={`  text-white  absolute  ${hasCheckedClass}`}>

@@ -1,3 +1,5 @@
+"use client";
+
 import Label from "@/components/Label/Label";
 import React, { FC, useState, useEffect } from "react";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
@@ -6,6 +8,7 @@ import Checkbox from "@/shared/Checkbox/Checkbox";
 import Input from "@/shared/Input/Input";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { getDeviceInfo } from "@/utils/deviceInfo";
 
 interface User {
   id: number;
@@ -114,6 +117,10 @@ const ContactInfo: FC<Props> = ({ isActive, onCloseActive, onOpenActive }) => {
     setLoginLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      // Get device info
+      const deviceInfo = getDeviceInfo();
+      
       const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -123,6 +130,7 @@ const ContactInfo: FC<Props> = ({ isActive, onCloseActive, onOpenActive }) => {
         body: JSON.stringify({
           email: loginEmail,
           password: loginPassword,
+          device_info: deviceInfo,
         }),
       });
 
@@ -139,7 +147,9 @@ const ContactInfo: FC<Props> = ({ isActive, onCloseActive, onOpenActive }) => {
         setShowLogin(false);
         
         // Dispatch auth change event
-        window.dispatchEvent(new Event('auth-change'));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('auth-change'));
+        }
         
         toast.success("Login successful!");
       } else {

@@ -34,17 +34,21 @@ const Captcha: FC<CaptchaProps> = ({ onVerify, onAnswerChange, className = "", r
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate captcha');
+        const errorText = await response.text();
+        console.error('Captcha API error:', response.status, errorText);
+        throw new Error(`Failed to generate captcha: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       if (data.success && data.data) {
         setCaptcha(data.data);
         setUserAnswer("");
+      } else {
+        throw new Error(data.message || 'Invalid captcha response');
       }
     } catch (err) {
       console.error('Error generating captcha:', err);
-      setError('Failed to load captcha. Please refresh the page.');
+      setError(err instanceof Error ? err.message : 'Failed to load captcha. Please refresh the page.');
     } finally {
       setLoading(false);
     }

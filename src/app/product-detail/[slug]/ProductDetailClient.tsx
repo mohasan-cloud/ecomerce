@@ -15,7 +15,6 @@ import IconDiscount from "@/components/IconDiscount";
 import Prices from "@/components/Prices";
 import toast from "react-hot-toast";
 import SectionSliderProductCard from "@/components/SectionSliderProductCard";
-import Policy from "../Policy";
 import ReviewItem from "@/components/ReviewItem";
 import ButtonSecondary from "@/shared/Button/ButtonSecondary";
 import SectionPromo2 from "@/components/SectionPromo2";
@@ -881,11 +880,6 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({ slug }) => {
             )}
           </div>
         </div>
-
-        {/*  */}
-        <div className="hidden xl:block">
-          <Policy />
-        </div>
       </div>
     );
   };
@@ -947,10 +941,6 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({ slug }) => {
 
         {/* DETAILS */}
         <div className="mt-12 sm:mt-16 space-y-10 sm:space-y-16">
-          <div className="block xl:hidden">
-            <Policy />
-          </div>
-
           {/* DESCRIPTION */}
           <div>
             <h2 className="text-2xl font-semibold">Product Details</h2>

@@ -49,6 +49,11 @@ const MainNav2Logged: FC<MainNav2LoggedProps> = () => {
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    // Only run on client side
+    if (typeof document === 'undefined') {
+      return;
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (searchFormRef.current && !searchFormRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
@@ -60,7 +65,14 @@ const MainNav2Logged: FC<MainNav2LoggedProps> = () => {
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      if (typeof document !== 'undefined') {
+        try {
+          document.removeEventListener('mousedown', handleClickOutside);
+        } catch (e) {
+          // Ignore error if document is not available
+          console.warn('Error removing event listener:', e);
+        }
+      }
     };
   }, [showSearchForm, showDropdown]);
 

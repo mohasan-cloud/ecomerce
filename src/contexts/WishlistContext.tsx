@@ -119,6 +119,11 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen for auth changes to refresh wishlist after login
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const handleAuthChange = () => {
       // Refresh wishlist when user logs in/out
       fetchWishlist();
@@ -127,7 +132,14 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener('auth-change', handleAuthChange);
 
     return () => {
-      window.removeEventListener('auth-change', handleAuthChange);
+      if (typeof window !== 'undefined') {
+        try {
+          window.removeEventListener('auth-change', handleAuthChange);
+        } catch (e) {
+          // Ignore error if window is not available
+          console.warn('Error removing event listener:', e);
+        }
+      }
     };
   }, []);
 

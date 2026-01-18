@@ -480,7 +480,7 @@ const TabFiltersAPI: React.FC<TabFiltersAPIProps> = ({ onFilterChange }) => {
                 />
               </svg>
               <span className="ml-2">
-                {getCurrencySymbol(currency)}{rangePrices[0]} - {getCurrencySymbol(currency)}{rangePrices[1]}
+                {currency && getCurrencySymbol(currency)}{rangePrices[0]} - {currency && getCurrencySymbol(currency)}{rangePrices[1]}
               </span>
             </Popover.Button>
             <Transition
@@ -518,15 +518,17 @@ const TabFiltersAPI: React.FC<TabFiltersAPIProps> = ({ onFilterChange }) => {
                             Min price
                           </label>
                           <div className="mt-1 relative rounded-md">
+                            {currency && (
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                               <span className="text-neutral-500 sm:text-sm">{getCurrencySymbol(currency)}</span>
                             </span>
+                            )}
                             <input
                               type="text"
                               name="minPrice"
                               disabled
                               id="minPrice"
-                              className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900"
+                              className={`focus:ring-indigo-500 focus:border-indigo-500 block w-full ${currency ? 'pl-7' : 'pl-3'} pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900`}
                               value={rangePrices[0]}
                             />
                           </div>
@@ -539,15 +541,17 @@ const TabFiltersAPI: React.FC<TabFiltersAPIProps> = ({ onFilterChange }) => {
                             Max price
                           </label>
                           <div className="mt-1 relative rounded-md">
+                            {currency && (
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                               <span className="text-neutral-500 sm:text-sm">{getCurrencySymbol(currency)}</span>
                             </span>
+                            )}
                             <input
                               type="text"
                               name="maxPrice"
                               disabled
                               id="maxPrice"
-                              className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900"
+                              className={`focus:ring-indigo-500 focus:border-indigo-500 block w-full ${currency ? 'pl-7' : 'pl-3'} pr-3 sm:text-sm border-neutral-200 rounded-full text-neutral-900`}
                               value={rangePrices[1]}
                             />
                           </div>

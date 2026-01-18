@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import Heading from "@/components/Heading/Heading";
 import NavItem2 from "@/components/NavItem2";
 import Nav from "@/shared/Nav/Nav";
@@ -27,31 +27,50 @@ const SectionGridMoreExplore: FC<SectionGridMoreExploreProps> = ({
   const [genders, setGenders] = useState<Gender[]>([]);
   const [loadingGenders, setLoadingGenders] = useState(true);
   const [selectedGenderId, setSelectedGenderId] = useState<number | null>(null);
+  const isMountedRef = useRef(true);
 
   // Fetch genders from API
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
     const fetchGenders = async () => {
       try {
-        setLoadingGenders(true);
+        if (isMountedRef.current) {
+          setLoadingGenders(true);
+        }
+        
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const response = await fetch(`${apiUrl}/api/genders`);
         const data = await response.json();
 
+        if (!isMountedRef.current) return;
+
         if (data.success && data.data) {
-          setGenders(data.data);
-          // Set first gender as active if available
-          if (data.data.length > 0 && selectedGenderId === null) {
-            setSelectedGenderId(data.data[0].id);
+          if (isMountedRef.current) {
+            setGenders(data.data);
+            // Set first gender as active if available
+            if (data.data.length > 0 && selectedGenderId === null) {
+              setSelectedGenderId(data.data[0].id);
+            }
           }
         }
       } catch (error) {
         console.error('Error fetching genders:', error);
       } finally {
-        setLoadingGenders(false);
+        if (isMountedRef.current) {
+          setLoadingGenders(false);
+        }
       }
     };
 
     fetchGenders();
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Fetch products based on selected gender

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import NcImage from "@/shared/NcImage/NcImage";
 import VectorImg from "@/images/VectorHIW.svg";
 import Badge from "@/shared/Badge/Badge";
 import Image from "next/image";
 import { useSiteData } from "@/hooks/useSiteData";
+import { useModuleData } from "@/contexts/ModuleDataContext";
 
 export interface SectionHowItWorkProps {
   className?: string;
@@ -67,9 +68,12 @@ const SectionHowItWork: FC<SectionHowItWorkProps> = ({
   className = "",
 }) => {
   const [data, setData] = useState<HowItWorkItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [moduleDataFetched, setModuleDataFetched] = useState(false);
   const { siteData } = useSiteData();
+  
+  // Get module data from context
+  const { data: moduleData, loading } = useModuleData(9);
+  const prevDataRef = useRef<string>('');
+  const isMountedRef = useRef(true);
 
   // Get site logo as fallback
   const getSiteLogo = () => {
@@ -82,118 +86,89 @@ const SectionHowItWork: FC<SectionHowItWorkProps> = ({
     return null;
   };
 
-  // Fetch module data from API (only once)
+  // Map module data to component format
   useEffect(() => {
-    if (moduleDataFetched) return;
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
+    const currentDataString = JSON.stringify({ moduleData, siteLogo: getSiteLogo() });
+    if (prevDataRef.current === currentDataString) {
+      return; // Skip if data hasn't changed
+    }
+    prevDataRef.current = currentDataString;
 
-    const fetchModuleData = async () => {
-      try {
-        setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/modules/9/data`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: ModuleDataResponse = await response.json();
-
-        if (result.success && result.data && result.data.length > 0) {
-          const siteLogo = getSiteLogo();
-          
-          // Sort data by extra_fields_1 (number count) first, then by sort_order, then by id
-          const sortedData = [...result.data].sort((a, b) => {
-            // Get extra_fields_1 as number
-            const extraField1A = a.extra_data?.extra_fields_1 
-              ? parseInt(a.extra_data.extra_fields_1, 10) 
-              : (a.sort_order ?? 0);
-            const extraField1B = b.extra_data?.extra_fields_1 
-              ? parseInt(b.extra_data.extra_fields_1, 10) 
-              : (b.sort_order ?? 0);
-            
-            // If extra_fields_1 values are different, sort by that
-            if (!isNaN(extraField1A) && !isNaN(extraField1B) && extraField1A !== extraField1B) {
-              return extraField1A - extraField1B;
-            }
-            
-            // Fallback to sort_order if extra_fields_1 is not available
-            const sortA = a.sort_order ?? 0;
-            const sortB = b.sort_order ?? 0;
-            if (sortA !== sortB) {
-              return sortA - sortB;
-            }
-            
-            // Final fallback to id
-            return a.id - b.id;
-          });
-
-          // Map API data to component format
-          const mappedData: HowItWorkItem[] = sortedData.map((item) => {
-            // Extract image from API or extra_data, fallback to site logo
-            const imageUrl = item.image 
-              || item.extra_data?.image 
-              || item.extra_data?.['Image'] 
-              || siteLogo
-              || '';
-            
-            // Extract title from title or extra_data
-            const title = item.title || item.extra_data?.title || item.extra_data?.['Title'] || '';
-            
-            // Extract description from description, highlights, or extra_data
-            const desc = item.description 
-              || (item.highlights && item.highlights.length > 0 ? item.highlights[0] : '')
-              || item.extra_data?.description 
-              || item.extra_data?.['Description'] 
-              || '';
-
-            return {
-              id: item.id,
-              img: imageUrl,
-              imgDark: imageUrl, // Same image for dark mode
-              title: title,
-              desc: desc,
-            };
-          });
-
-          setData(mappedData);
-          setModuleDataFetched(true);
-        } else {
-          setData([]);
-          setModuleDataFetched(true);
-        }
-      } catch (err) {
-        console.error('Error fetching module data:', err);
-        setData([]);
-        setModuleDataFetched(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchModuleData();
-  }, [moduleDataFetched, siteData]);
-
-  // Update images when siteData becomes available (for fallback logo)
-  useEffect(() => {
-    if (siteData && data.length > 0) {
+    if (moduleData && moduleData.length > 0 && isMountedRef.current) {
       const siteLogo = getSiteLogo();
-      if (siteLogo) {
-        setData(prevData => 
-          prevData.map(item => ({
-            ...item,
-            img: item.img || siteLogo,
-            imgDark: item.imgDark || siteLogo,
-          }))
-        );
+      
+      // Sort data by extra_fields_1 (number count) first, then by sort_order, then by id
+      const sortedData = [...moduleData].sort((a, b) => {
+        // Get extra_fields_1 as number
+        const extraField1A = a.extra_data?.extra_fields_1 
+          ? parseInt(a.extra_data.extra_fields_1, 10) 
+          : (a.sort_order ?? 0);
+        const extraField1B = b.extra_data?.extra_fields_1 
+          ? parseInt(b.extra_data.extra_fields_1, 10) 
+          : (b.sort_order ?? 0);
+        
+        // If extra_fields_1 values are different, sort by that
+        if (!isNaN(extraField1A) && !isNaN(extraField1B) && extraField1A !== extraField1B) {
+          return extraField1A - extraField1B;
+        }
+        
+        // Fallback to sort_order if extra_fields_1 is not available
+        const sortA = a.sort_order ?? 0;
+        const sortB = b.sort_order ?? 0;
+        if (sortA !== sortB) {
+          return sortA - sortB;
+        }
+        
+        // Final fallback to id
+        return a.id - b.id;
+      });
+
+      // Map API data to component format
+      const mappedData: HowItWorkItem[] = sortedData.map((item) => {
+        // Extract image from API or extra_data, fallback to site logo
+        const imageUrl = item.image 
+          || item.extra_data?.image 
+          || item.extra_data?.['Image'] 
+          || siteLogo
+          || '';
+        
+        // Extract title from title or extra_data
+        const title = item.title || item.extra_data?.title || item.extra_data?.['Title'] || '';
+        
+        // Extract description from description, highlights, or extra_data
+        const desc = item.description 
+          || (item.highlights && item.highlights.length > 0 ? item.highlights[0] : '')
+          || item.extra_data?.description 
+          || item.extra_data?.['Description'] 
+          || '';
+
+        return {
+          id: item.id,
+          img: imageUrl,
+          imgDark: imageUrl, // Same image for dark mode
+          title: title,
+          desc: desc,
+        };
+      });
+
+      if (isMountedRef.current) {
+        setData(mappedData);
+      }
+    } else {
+      if (isMountedRef.current) {
+        setData([]);
       }
     }
-  }, [siteData]);
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [moduleData, siteData]);
   // Show skeleton loading
   if (loading) {
     return (

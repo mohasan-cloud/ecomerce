@@ -51,6 +51,10 @@ const SectionMissionVision: FC = () => {
 
   // Fetch both Mission and Vision data in parallel
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    let isMounted = true;
+    
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -75,7 +79,7 @@ const SectionMissionVision: FC = () => {
         ]);
 
         // Process Mission data
-        if (missionResponse.ok) {
+        if (missionResponse.ok && isMounted) {
           const result: ModuleDataResponse = await missionResponse.json();
           if (result.success && result.data && result.data.length > 0) {
             const item = result.data[0];
@@ -85,16 +89,18 @@ const SectionMissionVision: FC = () => {
               || item.extra_data?.['Description'] 
               || '';
             
-            setMissionData({
-              title: item.title || 'Our Mission',
-              description: description,
-              icon: item.extra_data?.icon || item.extra_data?.['Icon'] || '🎯',
-            });
+            if (isMounted) {
+              setMissionData({
+                title: item.title || 'Our Mission',
+                description: description,
+                icon: item.extra_data?.icon || item.extra_data?.['Icon'] || '🎯',
+              });
+            }
           }
         }
 
         // Process Vision data
-        if (visionResponse.ok) {
+        if (visionResponse.ok && isMounted) {
           const result: ModuleDataResponse = await visionResponse.json();
           if (result.success && result.data && result.data.length > 0) {
             const item = result.data[0];
@@ -104,21 +110,30 @@ const SectionMissionVision: FC = () => {
               || item.extra_data?.['Description'] 
               || '';
             
-            setVisionData({
-              title: item.title || 'Our Vision',
-              description: description,
-              icon: item.extra_data?.icon || item.extra_data?.['Icon'] || '🌟',
-            });
+            if (isMounted) {
+              setVisionData({
+                title: item.title || 'Our Vision',
+                description: description,
+                icon: item.extra_data?.icon || item.extra_data?.['Icon'] || '🌟',
+              });
+            }
           }
         }
       } catch (err) {
         console.error('Error fetching mission/vision data:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Show skeleton loading

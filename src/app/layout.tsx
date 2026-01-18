@@ -9,8 +9,13 @@ import SiteHeader from "@/app/SiteHeader";
 import CommonClient from "./CommonClient";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { SiteDataProvider } from "@/contexts/SiteDataContext";
+import { ModuleDataProvider } from "@/contexts/ModuleDataContext";
 import { generateMetadata as getDefaultMetadata } from "@/utils/getMetadata";
 import FaviconUpdater from "./FaviconUpdater";
+import NotificationPermission from "@/components/NotificationPermission";
+import SWRProvider from "./SWRProvider";
+import "@/utils/globalErrorHandler"; // Import global error handler
 import type { Metadata } from "next";
 
 const poppins = localFont({
@@ -63,15 +68,22 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="bg-white text-base dark:bg-neutral-900 text-neutral-900 dark:text-neutral-200">
-        <FaviconUpdater />
-        <CartProvider>
-          <WishlistProvider>
-            <SiteHeader />
-            {children}
-            <CommonClient />
-            <Footer />
-          </WishlistProvider>
-        </CartProvider>
+        <SWRProvider>
+          <SiteDataProvider>
+            <ModuleDataProvider>
+              <FaviconUpdater />
+              <CartProvider>
+                <WishlistProvider>
+                  <SiteHeader />
+                  {children}
+                  <CommonClient />
+                  <NotificationPermission />
+                  <Footer />
+                </WishlistProvider>
+              </CartProvider>
+            </ModuleDataProvider>
+          </SiteDataProvider>
+        </SWRProvider>
       </body>
     </html>
   );

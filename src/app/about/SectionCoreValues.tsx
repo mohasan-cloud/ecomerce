@@ -48,6 +48,10 @@ const SectionCoreValues: FC = () => {
 
   // Fetch Core Values data from Module ID 14
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    let isMounted = true;
+    
     const fetchCoreValues = async () => {
       try {
         setLoading(true);
@@ -66,7 +70,7 @@ const SectionCoreValues: FC = () => {
 
         const result: ModuleDataResponse = await response.json();
 
-        if (result.success && result.data && result.data.length > 0) {
+        if (result.success && result.data && result.data.length > 0 && isMounted) {
           // Sort data by sort_order first, then by id
           const sortedData = [...result.data].sort((a, b) => {
             const sortA = a.sort_order ?? 0;
@@ -100,19 +104,30 @@ const SectionCoreValues: FC = () => {
             };
           });
 
-          setValues(mappedValues);
-        } else {
+          if (isMounted) {
+            setValues(mappedValues);
+          }
+        } else if (isMounted) {
           setValues([]);
         }
       } catch (err) {
         console.error('Error fetching core values data:', err);
-        setValues([]);
+        if (isMounted) {
+          setValues([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCoreValues();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Show skeleton loading

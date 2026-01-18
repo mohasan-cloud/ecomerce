@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React from "react";
 import SectionFounder from "./SectionFounder";
 import SectionStatistic from "./SectionStatistic";
 import BgGlassmorphism from "@/components/BgGlassmorphism/BgGlassmorphism";
@@ -7,11 +7,11 @@ import SectionHero from "./SectionHero";
 import SectionClientSay from "@/components/SectionClientSay/SectionClientSay";
 import SectionPromo3 from "@/components/SectionPromo3";
 import Heading from "@/components/Heading/Heading";
-import Badge from "@/shared/Badge/Badge";
 import SectionMissionVision from "./SectionMissionVision";
 import SectionCoreValues from "./SectionCoreValues";
 
-const PageAbout = ({}) => {
+// Server Component - Parent
+const PageAbout = () => {
   return (
     <div className={`nc-PageAbout overflow-hidden relative`}>
       {/* ======== BG GLASS ======== */}

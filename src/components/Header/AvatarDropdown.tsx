@@ -104,19 +104,29 @@ export default function AvatarDropdown() {
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    // Only add event listeners if window is available
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
 
-    // Listen for custom auth events
-    const handleAuthChange = () => {
-      checkAuth();
-    };
+      // Listen for custom auth events
+      const handleAuthChange = () => {
+        checkAuth();
+      };
 
-    window.addEventListener('auth-change', handleAuthChange);
+      window.addEventListener('auth-change', handleAuthChange);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('auth-change', handleAuthChange);
-    };
+      return () => {
+        try {
+          if (typeof window !== 'undefined') {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('auth-change', handleAuthChange);
+          }
+        } catch (e) {
+          // Ignore error if window is not available
+          console.warn('Error removing event listeners:', e);
+        }
+      };
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -139,10 +149,16 @@ export default function AvatarDropdown() {
       localStorage.removeItem('user');
       setUser(null);
       // Dispatch custom event to update other components
-      window.dispatchEvent(new Event('auth-change'));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('auth-change'));
+      }
       toast.success('Logged out successfully');
-      router.push('/');
-      router.refresh();
+      
+      // Add small delay before navigation to let cleanup complete
+      setTimeout(() => {
+        router.push('/');
+        router.refresh();
+      }, 100);
     }
   };
 
@@ -295,7 +311,7 @@ export default function AvatarDropdown() {
 
                     {/* ------------------ 2 --------------------- */}
                     <Link
-                      href={"/checkout"}
+                      href={"/account-order"}
                       className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
                       onClick={() => close()}
                     >
@@ -417,7 +433,7 @@ export default function AvatarDropdown() {
 
                     {/* ------------------ 2 --------------------- */}
                     <Link
-                      href={"/"}
+                      href={"/contact"}
                       className="flex items-center p-2 -m-3 transition duration-150 ease-in-out rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
                       onClick={() => close()}
                     >

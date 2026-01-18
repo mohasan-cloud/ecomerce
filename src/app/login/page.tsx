@@ -1,17 +1,22 @@
 "use client";
 
-import React, { FC, useState } from "react";
+import React, { FC, useState, useRef } from "react";
 import Input from "@/shared/Input/Input";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { getDeviceInfo } from "@/utils/deviceInfo";
 
 const PageLogin = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Use refs for cleanup and state tracking
+  const isMountedRef = useRef(true);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +27,7 @@ const PageLogin = () => {
     }
 
     try {
+      isMountedRef.current = true;
       setLoading(true);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       
@@ -56,12 +62,16 @@ const PageLogin = () => {
         const currentTheme = typeof window !== 'undefined' ? (localStorage.theme || 'light') : 'light';
         headers['X-Theme-Preference'] = currentTheme;
 
+        // Get device info
+        const deviceInfo = getDeviceInfo();
+
         response = await fetch(`${apiUrl}/api/auth/login`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             email,
             password,
+            device_info: deviceInfo,
           }),
         });
 
@@ -138,12 +148,25 @@ const PageLogin = () => {
             }
           }
           
-          // Dispatch custom event to update header
-          window.dispatchEvent(new Event('auth-change'));
+          // Dispatch custom event to update header and trigger notification setup
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth-change'));
+          }
         }
         toast.success(data.message || "Login successful!");
-        router.push('/');
-        router.refresh();
+        
+        // Add small delay before navigation to let cleanup complete and notification setup
+        // Use ref for timeout cleanup
+        if (navigationTimeoutRef.current) {
+          clearTimeout(navigationTimeoutRef.current);
+        }
+        
+        navigationTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            router.push('/');
+            router.refresh();
+          }
+        }, 200);
       } else {
         toast.error(data.message || "Login failed. Please check your credentials.");
       }
@@ -151,9 +174,22 @@ const PageLogin = () => {
       console.error('Login error:', error);
       toast.error(error.message || "An error occurred during login.");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
+  
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className={`nc-PageLogin`} data-nc-id="PageLogin">

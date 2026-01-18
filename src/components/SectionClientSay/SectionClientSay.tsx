@@ -5,13 +5,6 @@ import Glide from "@glidejs/glide/dist/glide.esm";
 import Heading from "@/components/Heading/Heading";
 import React, { FC, useId, useRef, useState } from "react";
 import { useEffect } from "react";
-import clientSayMain from "@/images/clientSayMain.png";
-import clientSay1 from "@/images/clientSay1.png";
-import clientSay2 from "@/images/clientSay2.png";
-import clientSay3 from "@/images/clientSay3.png";
-import clientSay4 from "@/images/clientSay4.png";
-import clientSay5 from "@/images/clientSay5.png";
-import clientSay6 from "@/images/clientSay6.png";
 import quotationImg from "@/images/quotation.png";
 import quotationImg2 from "@/images/quotation2.png";
 import { StarIcon } from "@heroicons/react/24/solid";
@@ -28,79 +21,108 @@ const SectionClientSay: FC<SectionClientSayProps> = ({ className = "" }) => {
   const { reviews, loading } = useReviews({ limit: 10, autoFetch: true });
 
   const [isShow, setIsShow] = useState(false);
+  
+  // Use refs for slider instance and mounted state
+  const sliderInstanceRef = useRef<Glide | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
     const OPTIONS: Partial<Glide.Options> = {
       perView: 1,
     };
 
-    if (!sliderRef.current) return;
+    if (!sliderRef.current || !isMountedRef.current) return;
 
-    let slider = new Glide(sliderRef.current, OPTIONS);
-    slider.mount();
-    setIsShow(true);
+    // Clean up previous slider if exists
+    if (sliderInstanceRef.current) {
+      try {
+        sliderInstanceRef.current.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      sliderInstanceRef.current = null;
+    }
+
+    try {
+      const slider = new Glide(sliderRef.current, OPTIONS);
+      slider.mount();
+      sliderInstanceRef.current = slider;
+      
+      if (isMountedRef.current) {
+        setIsShow(true);
+      }
+    } catch (e) {
+      console.error('Error initializing Glide slider:', e);
+    }
+
     return () => {
-      slider.destroy();
+      isMountedRef.current = false;
+      
+      if (sliderInstanceRef.current) {
+        try {
+          sliderInstanceRef.current.destroy();
+        } catch (e) {
+          // Ignore error if slider is already destroyed
+          console.warn('Error destroying Glide slider:', e);
+        } finally {
+          sliderInstanceRef.current = null;
+        }
+      }
     };
   }, [sliderRef]);
 
   // Re-initialize slider when reviews change
   useEffect(() => {
-    if (reviews.length > 0 && sliderRef.current) {
-      // Destroy and recreate slider
-      const OPTIONS: Partial<Glide.Options> = {
-        perView: 1,
-      };
-      // @ts-ignore
+    if (typeof window === 'undefined') return;
+    if (reviews.length === 0 || !sliderRef.current) return;
+    
+    isMountedRef.current = true;
+
+    // Destroy and recreate slider
+    const OPTIONS: Partial<Glide.Options> = {
+      perView: 1,
+    };
+    
+    // Clean up previous slider
+    if (sliderInstanceRef.current) {
+      try {
+        sliderInstanceRef.current.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      sliderInstanceRef.current = null;
+    }
+    
+    try {
       const slider = new Glide(sliderRef.current, OPTIONS);
       slider.mount();
-      return () => {
-        slider.destroy();
-      };
+      sliderInstanceRef.current = slider;
+    } catch (e) {
+      console.error('Error re-initializing Glide slider:', e);
     }
+
+    return () => {
+      isMountedRef.current = false;
+      
+      if (sliderInstanceRef.current) {
+        try {
+          sliderInstanceRef.current.destroy();
+        } catch (e) {
+          // Ignore error if slider is already destroyed
+          console.warn('Error destroying Glide slider:', e);
+        } finally {
+          sliderInstanceRef.current = null;
+        }
+      }
+    };
   }, [reviews]);
 
   const renderBg = () => {
-    return (
-      <div className="hidden md:block">
-        <Image
-          sizes="100px"
-          className="absolute top-9 -left-20"
-          src={clientSay1}
-          alt=""
-        />
-        <Image
-          sizes="100px"
-          className="absolute bottom-[100px] right-full mr-40"
-          src={clientSay2}
-          alt=""
-        />
-        <Image
-          sizes="100px"
-          className="absolute top-full left-[140px]"
-          src={clientSay3}
-          alt=""
-        />
-        <Image
-          sizes="100px"
-          className="absolute -bottom-10 right-[140px]"
-          src={clientSay4}
-          alt=""
-        />
-        <Image
-          sizes="100px"
-          className="absolute left-full ml-32 bottom-[80px]"
-          src={clientSay5}
-          alt=""
-        />
-        <Image
-          sizes="100px"
-          className="absolute -right-10 top-10 "
-          src={clientSay6}
-          alt=""
-        />
-      </div>
-    );
+    return null; // Client images removed
   };
 
   return (
@@ -114,7 +136,6 @@ const SectionClientSay: FC<SectionClientSayProps> = ({ className = "" }) => {
       <div className="relative md:mb-16 max-w-2xl mx-auto">
         {renderBg()}
 
-        <Image className="mx-auto" src={clientSayMain} alt="" />
         <div
           ref={sliderRef}
           className={`mt-12 lg:mt-16 relative ${isShow ? "" : "invisible"}`}

@@ -21,6 +21,8 @@ const SectionSliderLargeProduct: FC<SectionSliderLargeProductProps> = ({
   cardStyle = "style2",
 }) => {
   const sliderRef = useRef(null);
+  const sliderInstanceRef = useRef<Glide | null>(null);
+  const isMountedRef = useRef(true);
 
   const [isShow, setIsShow] = useState(false);
   
@@ -36,8 +38,12 @@ const SectionSliderLargeProduct: FC<SectionSliderLargeProductProps> = ({
   const currency = siteData?.settings?.system?.currency || null;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     // Only initialize slider when products are loaded
     if (loading || products.length === 0) return;
+    
+    isMountedRef.current = true;
 
     const OPTIONS: Partial<Glide.Options> = {
       perView: 3,
@@ -63,13 +69,44 @@ const SectionSliderLargeProduct: FC<SectionSliderLargeProductProps> = ({
         },
       },
     };
-    if (!sliderRef.current) return;
+    if (!sliderRef.current || !isMountedRef.current) return;
 
-    let slider = new Glide(sliderRef.current, OPTIONS);
-    slider.mount();
-    setIsShow(true);
+    // Clean up previous slider if exists
+    if (sliderInstanceRef.current) {
+      try {
+        sliderInstanceRef.current.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      sliderInstanceRef.current = null;
+    }
+
+    try {
+      const slider = new Glide(sliderRef.current, OPTIONS);
+      slider.mount();
+      sliderInstanceRef.current = slider;
+      
+      if (isMountedRef.current) {
+        setIsShow(true);
+      }
+    } catch (e) {
+      console.error('Error initializing Glide slider:', e);
+    }
+
+    // Cleanup function using useRef
     return () => {
-      slider.destroy();
+      isMountedRef.current = false;
+      
+      if (sliderInstanceRef.current) {
+        try {
+          sliderInstanceRef.current.destroy();
+        } catch (e) {
+          // Ignore error if slider is already destroyed
+          console.warn('Error destroying Glide slider:', e);
+        } finally {
+          sliderInstanceRef.current = null;
+        }
+      }
     };
   }, [sliderRef, loading, products]);
 

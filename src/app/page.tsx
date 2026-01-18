@@ -13,10 +13,12 @@ import Heading from "@/components/Heading/Heading";
 import ButtonSecondary from "@/shared/Button/ButtonSecondary";
 import SectionGridFeatureItems from "@/components/SectionGridFeatureItems";
 import SectionMagazine5 from "@/app/blog/SectionMagazine5";
+import PagePrefetcher from "@/components/PagePrefetcher";
 
 function PageHome() {
   return (
     <div className="nc-PageHome relative overflow-hidden">
+      <PagePrefetcher />
       <SectionHero2 />
 
       <div className="mt-24 lg:mt-32">

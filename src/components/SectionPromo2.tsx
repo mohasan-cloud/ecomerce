@@ -1,12 +1,13 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import NcImage from "@/shared/NcImage/NcImage";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
 import Logo from "@/shared/Logo/Logo";
 import backgroundLineSvg from "@/images/Moon.svg";
 import Image from "next/image";
 import { Route } from "@/routers/types";
+import { useModuleData } from "@/contexts/ModuleDataContext";
 
 export interface SectionPromo2Props {
   className?: string;
@@ -32,80 +33,69 @@ const SectionPromo2: FC<SectionPromo2Props> = ({ className = "lg:pt-10" }) => {
     buttonText: string;
     buttonLink: string;
   } | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch module data from API
+  // Get module data from context
+  const { data: moduleData, loading } = useModuleData(10);
+  const prevDataRef = useRef<string>('');
+  const isMountedRef = useRef(true);
+
+  // Map module data to component format
   useEffect(() => {
-    const fetchModuleData = async () => {
-      try {
-        setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/modules/10/data`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
+    const currentDataString = JSON.stringify(moduleData);
+    if (prevDataRef.current === currentDataString) {
+      return; // Skip if data hasn't changed
+    }
+    prevDataRef.current = currentDataString;
+
+    if (moduleData && moduleData.length > 0 && isMountedRef.current) {
+      // Get first item from module data
+      const item = moduleData[0];
+      
+      // Extract button text from extra_fields_1
+      const buttonText = item.extra_data?.extra_fields_1 
+        || item.extra_data?.btnText 
+        || item.extra_data?.button_text 
+        || item.extra_data?.['Button Text']
+        || 'Discover more';
+      
+      // Extract button link from extra_fields_2
+      const buttonLink = item.extra_data?.extra_fields_2 
+        || item.extra_data?.btnLink 
+        || item.extra_data?.button_link 
+        || item.extra_data?.['Button Link']
+        || '/search';
+      
+      // Extract description from description, highlights, or extra_data
+      const description = item.description 
+        || (item.highlights && item.highlights.length > 0 ? item.highlights[0] : '')
+        || item.extra_data?.description 
+        || item.extra_data?.['Description'] 
+        || '';
+
+      if (isMountedRef.current) {
+        setData({
+          title: item.title || '',
+          description: description,
+          image: item.image || null,
+          buttonText: buttonText,
+          buttonLink: buttonLink,
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: ModuleDataResponse = await response.json();
-
-        if (result.success && result.data && result.data.length > 0) {
-          // Get first item from module data
-          const item = result.data[0];
-          
-          // Debug: Log extra_data to see what's available
-          console.log('Module 10 Data:', item);
-          console.log('Extra Data:', item.extra_data);
-          
-          // Extract button text from extra_fields_1
-          const buttonText = item.extra_data?.extra_fields_1 
-            || item.extra_data?.btnText 
-            || item.extra_data?.button_text 
-            || item.extra_data?.['Button Text']
-            || 'Discover more';
-          
-          // Extract button link from extra_fields_2
-          const buttonLink = item.extra_data?.extra_fields_2 
-            || item.extra_data?.btnLink 
-            || item.extra_data?.button_link 
-            || item.extra_data?.['Button Link']
-            || '/search';
-          
-          console.log('Button Text:', buttonText);
-          console.log('Button Link:', buttonLink);
-          
-          // Extract description from description, highlights, or extra_data
-          const description = item.description 
-            || (item.highlights && item.highlights.length > 0 ? item.highlights[0] : '')
-            || item.extra_data?.description 
-            || item.extra_data?.['Description'] 
-            || '';
-
-          setData({
-            title: item.title || '',
-            description: description,
-            image: item.image || null,
-            buttonText: buttonText,
-            buttonLink: buttonLink,
-          });
-        } else {
-          setData(null);
-        }
-      } catch (err) {
-        console.error('Error fetching module data:', err);
-        setData(null);
-      } finally {
-        setLoading(false);
       }
+    } else {
+      if (isMountedRef.current) {
+        setData(null);
+      }
+    }
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
     };
-
-    fetchModuleData();
-  }, []);
+  }, [moduleData]);
 
   // Show loading state
   if (loading) {

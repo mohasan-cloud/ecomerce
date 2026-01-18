@@ -94,11 +94,24 @@ const SectionSliderLargeProduct2: FC<SectionSliderLargeProduct2Props> = ({
 
     if (!sliderRef.current) return;
 
-    let slider = new Glide(sliderRef.current, OPTIONS);
-    slider.mount();
-    setIsShow(true);
+    let slider: Glide | null = null;
+    try {
+      slider = new Glide(sliderRef.current, OPTIONS);
+      slider.mount();
+      setIsShow(true);
+    } catch (e) {
+      console.error('Error initializing Glide slider:', e);
+    }
+
     return () => {
-      slider.destroy();
+      if (slider) {
+        try {
+          slider.destroy();
+        } catch (e) {
+          // Ignore error if slider is already destroyed
+          console.warn('Error destroying Glide slider:', e);
+        }
+      }
     };
   }, [sliderRef]);
 

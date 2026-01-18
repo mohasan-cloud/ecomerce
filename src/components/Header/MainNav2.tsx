@@ -50,20 +50,47 @@ const MainNav2: FC<MainNav2Props> = ({ className = "" }) => {
     );
   };
 
+  // Use ref for event handler cleanup
+  const clickOutsideHandlerRef = useRef<((event: MouseEvent) => void) | null>(null);
+  const isMountedRef = useRef(true);
+
   // Close dropdown when clicking outside
   useEffect(() => {
+    // Only run on client side
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    isMountedRef.current = true;
+
     const handleClickOutside = (event: MouseEvent) => {
+      if (!isMountedRef.current) return;
+      
       if (searchFormRef.current && !searchFormRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
       }
     };
+
+    // Store handler in ref
+    clickOutsideHandlerRef.current = handleClickOutside;
 
     if (showSearchForm && showDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      isMountedRef.current = false;
+      
+      if (typeof document !== 'undefined' && clickOutsideHandlerRef.current) {
+        try {
+          document.removeEventListener('mousedown', clickOutsideHandlerRef.current);
+        } catch (e) {
+          // Ignore error if document is not available
+          console.warn('Error removing event listener:', e);
+        } finally {
+          clickOutsideHandlerRef.current = null;
+        }
+      }
     };
   }, [showSearchForm, showDropdown]);
 

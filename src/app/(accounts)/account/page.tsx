@@ -1,7 +1,7 @@
 "use client";
 
 import Label from "@/components/Label/Label";
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
 import Input from "@/shared/Input/Input";
 import Select from "@/shared/Select/Select";
@@ -33,6 +33,9 @@ const AccountPage = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  // Use refs for cleanup and state tracking
+  const isMountedRef = useRef(true);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -48,12 +51,18 @@ const AccountPage = () => {
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
     const fetchUserData = async () => {
       const token = localStorage.getItem('auth_token');
       
       if (!token) {
-        toast.error('Please login to access your account');
-        router.push('/login');
+        if (isMountedRef.current) {
+          toast.error('Please login to access your account');
+          router.push('/login');
+        }
         return;
       }
 
@@ -66,9 +75,11 @@ const AccountPage = () => {
           },
         });
 
+        if (!isMountedRef.current) return;
+
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.data?.user) {
+          if (data.success && data.data?.user && isMountedRef.current) {
             const userData = data.data.user;
             setUser(userData);
             setFormData({
@@ -86,20 +97,31 @@ const AccountPage = () => {
             });
           }
         } else if (response.status === 401) {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          toast.error('Session expired. Please login again');
-          router.push('/login');
+          if (isMountedRef.current) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            toast.error('Session expired. Please login again');
+            router.push('/login');
+          }
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        toast.error('Failed to load user data');
+        if (isMountedRef.current) {
+          toast.error('Failed to load user data');
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchUserData();
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

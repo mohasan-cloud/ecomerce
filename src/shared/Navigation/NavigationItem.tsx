@@ -82,6 +82,7 @@ const NavigationItem: FC<NavigationItemProps> = ({ menuItem }) => {
           href={{
             pathname: item.href || undefined,
           }}
+          prefetch={true}
         >
           {item.name}
         </Link>
@@ -196,6 +197,7 @@ const NavigationItem: FC<NavigationItemProps> = ({ menuItem }) => {
         href={{
           pathname: item.href || undefined,
         }}
+        prefetch={true}
       >
         {item.name}
         {item.type && (
@@ -217,6 +219,7 @@ const NavigationItem: FC<NavigationItemProps> = ({ menuItem }) => {
           href={{
             pathname: item.href || undefined,
           }}
+          prefetch={true}
         >
           {item.name}
           {item.type && (

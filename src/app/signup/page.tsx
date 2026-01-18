@@ -151,11 +151,17 @@ const PageSignUp = () => {
           }
           
           // Dispatch custom event to update header
-          window.dispatchEvent(new Event('auth-change'));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth-change'));
+          }
         }
         toast.success(data.message || "Registration successful!");
-        router.push('/');
-        router.refresh();
+        
+        // Add small delay before navigation to let cleanup complete
+        setTimeout(() => {
+          router.push('/');
+          router.refresh();
+        }, 100);
       } else {
         // Handle validation errors
         if (data.errors) {

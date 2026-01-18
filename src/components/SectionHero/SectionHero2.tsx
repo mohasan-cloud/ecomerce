@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useMemo, useRef } from "react";
 import backgroundLineSvg from "@/images/Moon.svg";
 import ButtonPrimary from "@/shared/Button/ButtonPrimary";
 import Next from "@/shared/NextPrev/Next";
@@ -8,9 +8,9 @@ import Prev from "@/shared/NextPrev/Prev";
 import useInterval from "react-use/lib/useInterval";
 import useBoolean from "react-use/lib/useBoolean";
 import Image from "next/image";
-import { HERO2_DEMO_DATA } from "./data";
 import { StaticImageData } from "next/image";
 import { Route } from "@/routers/types";
+import { useModuleData } from "@/contexts/ModuleDataContext";
 
 export interface SectionHero2Props {
   className?: string;
@@ -24,99 +24,84 @@ interface Hero2DataType {
   btnLink: string | Route;
 }
 
-interface ModuleDataResponse {
-  success: boolean;
-  data: Array<{
-    id: number;
-    title: string;
-    description: string;
-    image: string | null;
-    extra_data: Record<string, any>;
-    highlights: string[];
-  }>;
-}
-
-let TIME_OUT: NodeJS.Timeout | null = null;
-
 const SectionHero2: FC<SectionHero2Props> = ({ className = "" }) => {
   // =================
   const [indexActive, setIndexActive] = useState(0);
   const [isRunning, toggleIsRunning] = useBoolean(true);
-  const [data, setData] = useState<Hero2DataType[]>(HERO2_DEMO_DATA);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<Hero2DataType[]>([]);
+  
+  // Get module data from context
+  const { data: moduleData, loading } = useModuleData(6);
+  
+  // Use refs for cleanup and state tracking
+  const prevDataRef = useRef<string>('');
+  const timeOutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Fetch module data from API
+  // Map module data to component format using useMemo
+  const mappedData = useMemo(() => {
+    if (!moduleData || moduleData.length === 0) {
+      return [];
+    }
+
+    return moduleData.map((item) => {
+      // Extract button text - priority: extra_fields_1 > btnText > button_text > Button Text
+      const btnText = item.extra_data?.extra_fields_1 
+        || item.extra_data?.btnText 
+        || item.extra_data?.button_text 
+        || item.extra_data?.['Button Text'] 
+        || item.extra_data?.['Button name']
+        || 'Explore now';
+      
+      // Extract button link - priority: extra_fields_2 > btnLink > button_link > Button Link
+      const btnLink = item.extra_data?.extra_fields_2 
+        || item.extra_data?.btnLink 
+        || item.extra_data?.button_link 
+        || item.extra_data?.['Button Link']
+        || item.extra_data?.['button Link']
+        || '/';
+      
+      // Use first highlight as subHeading if available, otherwise use description
+      const subHeading = item.highlights && item.highlights.length > 0 
+        ? item.highlights[0] 
+        : (item.description || item.extra_data?.subHeading || item.extra_data?.['Sub Heading'] || '');
+      
+      // Use image from API or fallback
+      const imageUrl = item.image || item.extra_data?.image || item.extra_data?.['Image'] || '';
+
+      return {
+        image: imageUrl || '/images/hero-right.png', // Fallback image
+        heading: item.title,
+        subHeading: subHeading,
+        btnText: btnText,
+        btnLink: btnLink,
+      };
+    });
+  }, [moduleData]);
+
+  // Update data only when mappedData actually changes
   useEffect(() => {
-    const fetchModuleData = async () => {
-      try {
-        setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/modules/6/data`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: ModuleDataResponse = await response.json();
-
-        if (result.success && result.data && result.data.length > 0) {
-          // Map API data to component format
-          const mappedData: Hero2DataType[] = result.data.map((item) => {
-            // Extract button text - priority: extra_fields_1 > btnText > button_text > Button Text
-            const btnText = item.extra_data?.extra_fields_1 
-              || item.extra_data?.btnText 
-              || item.extra_data?.button_text 
-              || item.extra_data?.['Button Text'] 
-              || item.extra_data?.['Button name']
-              || 'Explore now';
-            
-            // Extract button link - priority: extra_fields_2 > btnLink > button_link > Button Link
-            const btnLink = item.extra_data?.extra_fields_2 
-              || item.extra_data?.btnLink 
-              || item.extra_data?.button_link 
-              || item.extra_data?.['Button Link']
-              || item.extra_data?.['button Link']
-              || '/';
-            
-            // Use first highlight as subHeading if available, otherwise use description
-            const subHeading = item.highlights && item.highlights.length > 0 
-              ? item.highlights[0] 
-              : (item.description || item.extra_data?.subHeading || item.extra_data?.['Sub Heading'] || '');
-            
-            // Use image from API or fallback
-            const imageUrl = item.image || item.extra_data?.image || item.extra_data?.['Image'] || '';
-
-            return {
-              image: imageUrl || '/images/hero-right.png', // Fallback image
-              heading: item.title,
-              subHeading: subHeading,
-              btnText: btnText,
-              btnLink: btnLink,
-            };
-          });
-
-          setData(mappedData);
-        } else {
-          // Keep default data if API returns empty
-          setData(HERO2_DEMO_DATA);
-        }
-      } catch (err) {
-        console.error('Error fetching module data:', err);
-        // Keep default data on error
-        setData(HERO2_DEMO_DATA);
-      } finally {
-        setLoading(false);
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
+    const currentDataString = JSON.stringify(mappedData);
+    if (prevDataRef.current !== currentDataString && isMountedRef.current) {
+      prevDataRef.current = currentDataString;
+      setData(mappedData);
+    }
+    
+    // Cleanup function using refs
+    return () => {
+      isMountedRef.current = false;
+      
+      // Clear any timeouts using ref
+      if (timeOutRef.current) {
+        clearTimeout(timeOutRef.current);
+        timeOutRef.current = null;
       }
     };
-
-    fetchModuleData();
-  }, []);
+  }, [mappedData]);
 
   useInterval(
     () => {
@@ -157,11 +142,16 @@ const SectionHero2: FC<SectionHero2Props> = ({ className = "" }) => {
 
   const handleAfterClick = () => {
     toggleIsRunning(false);
-    if (TIME_OUT) {
-      clearTimeout(TIME_OUT);
+    
+    // Use ref for timeout
+    if (timeOutRef.current) {
+      clearTimeout(timeOutRef.current);
     }
-    TIME_OUT = setTimeout(() => {
-      toggleIsRunning(true);
+    
+    timeOutRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        toggleIsRunning(true);
+      }
     }, 1000);
   };
   // =================
@@ -293,13 +283,32 @@ const SectionHero2: FC<SectionHero2Props> = ({ className = "" }) => {
     );
   };
 
-  // Show loading state or empty state
+  // Show skeleton loading state
   if (loading) {
     return (
-      <div className={`nc-SectionHero2Item flex items-center justify-center min-h-[400px] ${className}`}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
+      <div className={`nc-SectionHero2Item nc-SectionHero2Item--animation flex flex-col-reverse lg:flex-col relative overflow-hidden ${className}`}>
+        <div className="absolute bottom-4 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 z-20 flex justify-center gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="w-20 h-1 bg-slate-200 dark:bg-slate-700 rounded-md animate-pulse"></div>
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-[#E3FFE6]">
+          <div className="absolute inset-0 bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+        </div>
+        <div className="relative container pb-0 pt-14 sm:pt-20 lg:py-44">
+          <div className="relative z-[1] w-full max-w-3xl space-y-8 sm:space-y-14">
+            <div className="space-y-5 sm:space-y-6">
+              <div className="h-6 w-48 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+              <div className="space-y-3">
+                <div className="h-8 sm:h-10 md:h-12 lg:h-16 w-full bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div className="h-8 sm:h-10 md:h-12 lg:h-16 w-3/4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+            <div className="h-12 w-40 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          </div>
+          <div className="mt-10 lg:mt-0 lg:absolute end-0 rtl:-end-28 bottom-0 top-0 w-full max-w-2xl xl:max-w-3xl 2xl:max-w-4xl">
+            <div className="w-full h-full bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          </div>
         </div>
       </div>
     );

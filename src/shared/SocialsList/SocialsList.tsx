@@ -44,19 +44,16 @@ const SocialsList: FC<SocialsListProps> = ({
     socials.push({ name: "WhatsApp", icon: telegram, href: `https://wa.me/${socialLinks.whatsapp.replace(/[^0-9]/g, '')}` });
   }
 
-  // If no social links provided, show demo links
-  const displaySocials = socials.length > 0 ? socials : [
-    { name: "Facebook", icon: facebook, href: "#" },
-    { name: "Twitter", icon: twitter, href: "#" },
-    { name: "Youtube", icon: youtube, href: "#" },
-    { name: "Telegram", icon: telegram, href: "#" },
-  ];
+  // Only show socials if they exist (no dummy fallback)
+  if (socials.length === 0) {
+    return null;
+  }
 
   return (
     <nav
       className={`nc-SocialsList flex space-x-2.5 text-2xl text-neutral-6000 dark:text-neutral-300 ${className}`}
     >
-      {displaySocials.map((item, i) => (
+      {socials.map((item, i) => (
         <a
           key={i}
           className={`${itemClass}`}

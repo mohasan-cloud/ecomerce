@@ -6,14 +6,21 @@ export interface MetaDataResponse {
     title: string;
     description: string;
     keywords?: string | null;
+    robots?: string | null;
+    canonical_url?: string | null;
     og_title?: string;
     og_description?: string;
     og_url?: string;
     og_type?: string;
     og_image?: string | null;
+    twitter_card?: string;
+    twitter_title?: string;
+    twitter_description?: string;
+    twitter_image?: string | null;
     og_price_amount?: number;
     og_price_currency?: string;
     site_name?: string;
+    site_url?: string;
     favicon?: string | null;
   };
 }
@@ -99,14 +106,19 @@ export async function generateMetadata(
   const title = meta.title || (slug ? `${slug} - Page` : 'Page');
   const description = meta.description || '';
 
-  return {
+  // Build metadata object
+  const metadata: Metadata = {
     title,
     description: description || undefined,
     keywords: meta.keywords ? meta.keywords.split(',').map(k => k.trim()).filter(k => k) : undefined,
+    robots: meta.robots || undefined,
+    alternates: meta.canonical_url ? {
+      canonical: meta.canonical_url,
+    } : undefined,
     openGraph: {
       title: meta.og_title || title,
       description: meta.og_description || description || undefined,
-      url: meta.og_url || siteUrl,
+      url: meta.og_url || meta.site_url || siteUrl,
       siteName: meta.site_name || 'Site',
       images: meta.og_image ? [
         {
@@ -126,14 +138,16 @@ export async function generateMetadata(
       }),
     },
     twitter: {
-      card: 'summary_large_image',
-      title: meta.og_title || title,
-      description: meta.og_description || description || undefined,
-      images: meta.og_image ? [meta.og_image] : [],
+      card: (meta.twitter_card as 'summary' | 'summary_large_image' | 'app' | 'player') || 'summary_large_image',
+      title: meta.twitter_title || meta.og_title || title,
+      description: meta.twitter_description || meta.og_description || description || undefined,
+      images: meta.twitter_image ? [meta.twitter_image] : (meta.og_image ? [meta.og_image] : []),
     },
     icons: {
       icon: meta.favicon || '/favicon.ico',
     },
   };
+
+  return metadata;
 }
 

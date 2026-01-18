@@ -77,33 +77,58 @@ const SectionSliderProductCard: FC<SectionSliderProductCardProps> = ({
 
   const [displaySubHeading, setDisplaySubHeading] = useState(subHeading);
 
+  // Use ref for interval cleanup
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
+    isMountedRef.current = true;
+    
     const expiryDate = getEarliestExpiryDate();
     const formattedDate = expiryDate ? formatDate(expiryDate) : null;
     
-    if (formattedDate) {
-      setDisplaySubHeading(`${subHeading} • ${formattedDate}`);
-    } else {
-      setDisplaySubHeading(subHeading);
-    }
-
-    // Update every minute to show real-time countdown
-    const interval = setInterval(() => {
-      const updatedDate = getEarliestExpiryDate();
-      const updatedFormatted = updatedDate ? formatDate(updatedDate) : null;
-      
-      if (updatedFormatted) {
-        setDisplaySubHeading(`${subHeading} • ${updatedFormatted}`);
+    if (isMountedRef.current) {
+      if (formattedDate) {
+        setDisplaySubHeading(`${subHeading} • ${formattedDate}`);
       } else {
         setDisplaySubHeading(subHeading);
       }
+    }
+
+    // Update every minute to show real-time countdown
+    intervalRef.current = setInterval(() => {
+      if (!isMountedRef.current) return;
+      
+      const updatedDate = getEarliestExpiryDate();
+      const updatedFormatted = updatedDate ? formatDate(updatedDate) : null;
+      
+      if (isMountedRef.current) {
+        if (updatedFormatted) {
+          setDisplaySubHeading(`${subHeading} • ${updatedFormatted}`);
+        } else {
+          setDisplaySubHeading(subHeading);
+        }
+      }
     }, 60000); // Update every minute
 
-    return () => clearInterval(interval);
+    return () => {
+      isMountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [products, subHeading, hasOffers]);
+
+  // Use ref for slider instance
+  const sliderInstanceRef = useRef<Glide | null>(null);
+  const sliderMountedRef = useRef(true);
 
   useEffect(() => {
     if (loading || products.length === 0) return;
+    if (typeof window === 'undefined') return;
+
+    sliderMountedRef.current = true;
 
     const OPTIONS: Partial<Glide.Options> = {
       perView: 4,
@@ -131,13 +156,43 @@ const SectionSliderProductCard: FC<SectionSliderProductCardProps> = ({
         },
       },
     };
-    if (!sliderRef.current) return;
+    if (!sliderRef.current || !sliderMountedRef.current) return;
 
-    let slider = new Glide(sliderRef.current, OPTIONS);
-    slider.mount();
-    setIsShow(true);
+    // Clean up previous slider if exists
+    if (sliderInstanceRef.current) {
+      try {
+        sliderInstanceRef.current.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      sliderInstanceRef.current = null;
+    }
+
+    try {
+      const slider = new Glide(sliderRef.current, OPTIONS);
+      slider.mount();
+      sliderInstanceRef.current = slider;
+      
+      if (sliderMountedRef.current) {
+        setIsShow(true);
+      }
+    } catch (e) {
+      console.error('Error initializing Glide slider:', e);
+    }
+
     return () => {
-      slider.destroy();
+      sliderMountedRef.current = false;
+      
+      if (sliderInstanceRef.current) {
+        try {
+          sliderInstanceRef.current.destroy();
+        } catch (e) {
+          // Ignore error if slider is already destroyed
+          console.warn('Error destroying Glide slider:', e);
+        } finally {
+          sliderInstanceRef.current = null;
+        }
+      }
     };
   }, [sliderRef, loading, products]);
 

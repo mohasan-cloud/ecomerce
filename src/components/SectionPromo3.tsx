@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import NcImage from "@/shared/NcImage/NcImage";
 import backgroundLineSvg from "@/images/BackgroundLine.svg";
 import Badge from "@/shared/Badge/Badge";
@@ -8,22 +8,10 @@ import Input from "@/shared/Input/Input";
 import ButtonCircle from "@/shared/Button/ButtonCircle";
 import { ArrowSmallRightIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
+import { useModuleData } from "@/contexts/ModuleDataContext";
 
 export interface SectionPromo3Props {
   className?: string;
-}
-
-interface ModuleDataResponse {
-  success: boolean;
-  data: Array<{
-    id: number;
-    title: string;
-    description: string;
-    image: string | null;
-    extra_data: Record<string, any>;
-    highlights: string[];
-    sort_order: number | null;
-  }>;
 }
 
 // Skeleton Loading Component
@@ -59,31 +47,27 @@ const SectionPromo3: FC<SectionPromo3Props> = ({ className = "lg:pt-10" }) => {
     highlights: string[];
     emailPlaceholder: string;
   } | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch module data from API
+  // Get module data from context
+  const { data: moduleData, loading } = useModuleData(16);
+  const prevDataRef = useRef<string>('');
+  const isMountedRef = useRef(true);
+
+  // Map module data to component format
   useEffect(() => {
-    const fetchModuleData = async () => {
-      try {
-        setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/modules/16/data`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
+    if (typeof window === 'undefined') return;
+    
+    isMountedRef.current = true;
+    
+    const currentDataString = JSON.stringify(moduleData);
+    if (prevDataRef.current === currentDataString) {
+      return; // Skip if data hasn't changed
+    }
+    prevDataRef.current = currentDataString;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result: ModuleDataResponse = await response.json();
-
-        if (result.success && result.data && result.data.length > 0) {
-          // Get first item from module data
-          const item = result.data[0];
+    if (moduleData && moduleData.length > 0 && isMountedRef.current) {
+      // Get first item from module data
+      const item = moduleData[0];
           
           // Extract highlights - check multiple sources and ensure it's an array
           let highlights: string[] = [];
@@ -110,9 +94,7 @@ const SectionPromo3: FC<SectionPromo3Props> = ({ className = "lg:pt-10" }) => {
             }
           }
 
-          console.log('Highlights data:', highlights);
-
-          // Extract email placeholder from extra_data
+      // Extract email placeholder from extra_data
           const emailPlaceholder = item.extra_data?.email_placeholder 
             || item.extra_data?.['Email Placeholder']
             || item.extra_data?.emailPlaceholder
@@ -120,26 +102,26 @@ const SectionPromo3: FC<SectionPromo3Props> = ({ className = "lg:pt-10" }) => {
             || item.extra_data?.['Placeholder']
             || 'Enter your email';
 
-          setData({
-            title: item.title || '',
-            description: item.description || '',
-            image: item.image || null,
-            highlights: highlights,
-            emailPlaceholder: emailPlaceholder,
-          });
-        } else {
-          setData(null);
-        }
-      } catch (err) {
-        console.error('Error fetching module data:', err);
-        setData(null);
-      } finally {
-        setLoading(false);
+      if (isMountedRef.current) {
+        setData({
+          title: item.title || '',
+          description: item.description || '',
+          image: item.image || null,
+          highlights: highlights,
+          emailPlaceholder: emailPlaceholder,
+        });
       }
+    } else {
+      if (isMountedRef.current) {
+        setData(null);
+      }
+    }
+    
+    // Cleanup function using useRef
+    return () => {
+      isMountedRef.current = false;
     };
-
-    fetchModuleData();
-  }, []);
+  }, [moduleData]);
 
   // Show skeleton loading
   if (loading) {

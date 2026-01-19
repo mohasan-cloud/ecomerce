@@ -614,7 +614,18 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({ slug }) => {
     );
   }
 
-  const allImages = [product.mainImage, ...product.galleryImages];
+const decodeUrl = (url: string) => {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return url;
+  }
+};
+
+const allImages = [
+  decodeUrl(product.mainImage),
+  ...(product.galleryImages || []).map((img) => decodeUrl(img)),
+];
 
   const renderColors = () => {
     if (!product.colors || product.colors.length === 0) {

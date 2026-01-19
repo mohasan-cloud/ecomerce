@@ -23,6 +23,13 @@ const nextConfig = {
         port: "8000",
         pathname: "/**",
       },
+      // ✅ Laravel production domain
+      {
+        protocol: "https",
+        hostname: "mohasanadmin.softriks.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };

@@ -770,7 +770,10 @@ const ProductQuickView: FC<ProductQuickViewProps> = ({
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="w-full rounded-xl object-cover"
                 alt={name}
-                unoptimized={typeof LIST_IMAGES[imageActive] === 'string' && (LIST_IMAGES[imageActive].startsWith('http://localhost') || LIST_IMAGES[imageActive].startsWith('http://127.0.0.1'))}
+                unoptimized={
+                  typeof LIST_IMAGES[imageActive] === "string" &&
+                  LIST_IMAGES[imageActive].startsWith("http")
+                }
                 onError={(e) => {
                   console.error('Image load error:', LIST_IMAGES[imageActive]);
                 }}
@@ -802,7 +805,7 @@ const ProductQuickView: FC<ProductQuickViewProps> = ({
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="w-full rounded-xl object-cover"
                       alt={`${name} ${index + 2}`}
-                      unoptimized={typeof item === 'string' && (item.startsWith('http://localhost') || item.startsWith('http://127.0.0.1'))}
+                      unoptimized={typeof item === "string" && item.startsWith("http")}
                   />
                 </div>
               );

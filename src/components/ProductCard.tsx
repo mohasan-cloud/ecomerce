@@ -112,7 +112,7 @@ const ProductCard: FC<ProductCardProps> = ({
             src={image}
             alt={name}
             className="object-cover object-center w-full h-full"
-            unoptimized={typeof image === 'string' && (image.startsWith('http://localhost') || image.startsWith('http://127.0.0.1'))}
+            unoptimized={typeof image === "string" && image.startsWith("http")}
           />
         </div>
 
@@ -197,7 +197,7 @@ const ProductCard: FC<ProductCardProps> = ({
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 40vw"
               alt={name}
-              unoptimized={typeof image === 'string' && (image.startsWith('http://localhost') || image.startsWith('http://127.0.0.1'))}
+              unoptimized={typeof image === "string" && image.startsWith("http")}
             />
           </Link>
           {status && <ProductStatus status={status as any} />}

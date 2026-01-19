@@ -614,23 +614,7 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({ slug }) => {
     );
   }
 
-const decodeUrl = (url: string) => {
-  try {
-    let decoded = url;
-    let prev = "";
-
-    // keep decoding until it stops changing
-    while (decoded !== prev) {
-      prev = decoded;
-      decoded = decodeURIComponent(decoded);
-    }
-
-    return decoded;
-  } catch {
-    return url;
-  }
-};
-
+  const allImages = [product.mainImage, ...product.galleryImages];
 
   const renderColors = () => {
     if (!product.colors || product.colors.length === 0) {
@@ -915,7 +899,10 @@ const decodeUrl = (url: string) => {
                   src={allImages[activeImage]}
                   className="w-full rounded-2xl object-cover"
                   alt={product.name}
-                  unoptimized={allImages[activeImage].includes('localhost')}
+                  unoptimized={
+                    typeof allImages[activeImage] === "string" &&
+                    allImages[activeImage].startsWith("http")
+                  }
                 />
               </div>
               {renderStatus()}
@@ -941,7 +928,9 @@ const decodeUrl = (url: string) => {
                       src={img}
                       className="w-full rounded-2xl object-cover"
                       alt={`${product.name} ${index + 2}`}
-                      unoptimized={img.includes('localhost')}
+                      unoptimized={
+                        typeof img === "string" && img.startsWith("http")
+                      }
                     />
                   </div>
                 ))}

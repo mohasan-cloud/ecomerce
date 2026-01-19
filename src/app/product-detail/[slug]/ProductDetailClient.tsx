@@ -616,16 +616,21 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({ slug }) => {
 
 const decodeUrl = (url: string) => {
   try {
-    return decodeURIComponent(url);
+    let decoded = url;
+    let prev = "";
+
+    // keep decoding until it stops changing
+    while (decoded !== prev) {
+      prev = decoded;
+      decoded = decodeURIComponent(decoded);
+    }
+
+    return decoded;
   } catch {
     return url;
   }
 };
 
-const allImages = [
-  decodeUrl(product.mainImage),
-  ...(product.galleryImages || []).map((img) => decodeUrl(img)),
-];
 
   const renderColors = () => {
     if (!product.colors || product.colors.length === 0) {
